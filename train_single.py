@@ -19,8 +19,8 @@ def parse_arguments():
 
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--alpha', type=float, default=0.7)
-    parser.add_argument('--beta', type=float, default=0.3)
+    parser.add_argument('--alpha', type=float, default=0.3)
+    parser.add_argument('--beta', type=float, default=0.7)
     parser.add_argument('--train-dir', default='data/colorferet/train')
     parser.add_argument('--val-dir', default='data/colorferet/val')
     parser.add_argument('--train-cutoff', type=int, default=None)

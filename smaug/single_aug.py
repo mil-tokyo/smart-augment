@@ -88,15 +88,14 @@ class SmartAugmentSingle:
                 loss_a = criterion_a(new_img, im3)
                 loss_b = criterion_b(out, labels)
                 loss = self.alpha * loss_a + self.beta * loss_b
-                total_loss += loss.data[0]
+                total_loss += loss.item()
 
                 optimizer_a.zero_grad()
+                optimizer_b.zero_grad()
                 loss.backward(retain_graph=True)
-                nn.utils.clip_grad_norm(self.net_a.parameters(), gradient_norm)
+                #nn.utils.clip_grad_norm(self.net_a.parameters(), gradient_norm)
                 optimizer_a.step()
 
-                optimizer_b.zero_grad()
-                loss_b.backward()
                 optimizer_b.step()
 
                 del im1, im2, im3, labels
@@ -121,7 +120,7 @@ class SmartAugmentSingle:
                 out = self.get_net_b_pred(im3)[0]
                 _, pred = torch.max(out, 0)
 
-                if pred.data[0] == labels[0][0]:
+                if pred.data.item() == labels[0]:
                     correct += 1.
                 total += 1.
             acc = correct / total
@@ -137,7 +136,7 @@ class SmartAugmentSingle:
                 out = self.get_net_b_pred(im3)[0]
                 _, pred = torch.max(out, 0)
 
-                if pred.data[0] == labels[0][0]:
+                if pred.data.item() == labels[0][0]:
                     correct += 1.
                 total += 1.
             acc = correct / total
