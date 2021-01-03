@@ -50,8 +50,8 @@ class SmartAugmentSingle:
 
         # optimizer = torch.optim.SGD(list(self.net_a.parameters()) + list(self.net_b.parameters()),
         #                             lr=lr, momentum=0.9, nesterov=False)
-        optimizer_a = torch.optim.SGD(self.net_a.parameters(), lr=lr, momentum=0.9, nesterov=False)
-        optimizer_b = torch.optim.SGD(self.net_b.parameters(), lr=lr, momentum=0.9, nesterov=False)
+        optimizer_a = torch.optim.SGD(self.net_a.parameters(), lr=lr, momentum=0.9, nesterov=True)
+        optimizer_b = torch.optim.SGD(self.net_b.parameters(), lr=lr, momentum=0.9, nesterov=True)
 
         criterion_a = nn.MSELoss(size_average=True)
         criterion_b = nn.CrossEntropyLoss()
