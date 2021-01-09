@@ -9,7 +9,6 @@ import numpy as np
 
 from torch.utils.data import DataLoader
 
-from smaug.utils import raw_collate
 
 
 class SmartAugmentSingle:
@@ -53,11 +52,11 @@ class SmartAugmentSingle:
         optimizer_a = torch.optim.SGD(self.net_a.parameters(), lr=lr, momentum=0.9, nesterov=True)
         optimizer_b = torch.optim.SGD(self.net_b.parameters(), lr=lr, momentum=0.9, nesterov=True)
 
-        criterion_a = nn.MSELoss(size_average=True)
+        criterion_a = nn.MSELoss()
         criterion_b = nn.CrossEntropyLoss()
-        train_loader = DataLoader(dataset, batch_size=1, shuffle=True,
-                                  collate_fn=raw_collate)
-        test_loader = DataLoader(test_dataset, batch_size=1, collate_fn=raw_collate)
+        train_loader = DataLoader(dataset, batch_size=64, shuffle=True,
+                                  num_workers=0)
+        test_loader = DataLoader(test_dataset, batch_size=64,shuffle=False,num_workers=0)
         best_acc = 0.
 
         for ep in range(epochs):
@@ -68,12 +67,8 @@ class SmartAugmentSingle:
 
             for i, (images, labels) in enumerate(train_loader):
                 im1, im2, im3 = images
-                im1 = autograd.Variable(im1)
-                im2 = autograd.Variable(im2)
-                im3 = autograd.Variable(im3)
                 labels = autograd.Variable(labels)
                 labels = torch.cat([labels, labels], dim=0)
-                labels = torch.squeeze(labels, dim=1)
 
                 if self.__cuda:
                     im1 = im1.cuda()
@@ -92,7 +87,7 @@ class SmartAugmentSingle:
 
                 optimizer_a.zero_grad()
                 optimizer_b.zero_grad()
-                loss.backward(retain_graph=True)
+                loss.backward()
                 #nn.utils.clip_grad_norm(self.net_a.parameters(), gradient_norm)
                 optimizer_a.step()
 
@@ -101,46 +96,53 @@ class SmartAugmentSingle:
                 del im1, im2, im3, labels
 
                 print('Epoch %d/%d - Iter %d/%d - Loss@A: %6.4f - Loss@B: %6.4f - Loss: %6.4f' %
-                      (ep+1, epochs, i+1, len(dataset), loss_a, loss_b, loss), end='\r')
+                      (ep+1, epochs, i+1, len(train_loader), loss_a, loss_b, loss), end='\r')
 
             t_elapsed = time.time() - t_start
             print()
             print('Epoch %d/%d - Avg. loss: %.4f - Time: %.2fs' %
-                  (ep + 1, epochs, total_loss / len(dataset), t_elapsed))
+                  (ep + 1, epochs, total_loss / len(train_loader), t_elapsed))
 
             # Evaluate accuracy
             print('Evaluating...')
             correct, total = 0., 0.
             for i, (images, labels) in enumerate(train_loader):
                 _, _, im3 = images
-                im3 = autograd.Variable(im3)
                 if self.__cuda:
                     im3 = im3.cuda()
+                    labels = labels.cuda()
 
-                out = self.get_net_b_pred(im3)[0]
-                _, pred = torch.max(out, 0)
+                out = self.get_net_b_pred(im3)
+                pred = torch.argmax(out, 1)
+                for (pred_i,labels_i) in zip(pred,labels):
+                    if pred_i == labels_i:
+                        correct += 1
+                    total += 1
 
-                if pred.data.item() == labels[0]:
-                    correct += 1.
-                total += 1.
             acc = correct / total
             print('Train accuracy: %.4f' % acc)
 
             correct, total = 0., 0.
+            loss_value_test = 0.0
             for i, (images, labels) in enumerate(test_loader):
                 _, _, im3 = images
-                im3 = autograd.Variable(im3)
                 if self.__cuda:
                     im3 = im3.cuda()
+                    labels = labels.cuda()
 
-                out = self.get_net_b_pred(im3)[0]
-                _, pred = torch.max(out, 0)
+                out = self.get_net_b_pred(im3)
+                pred = torch.argmax(out, 1)
+                loss_value_batch = nn.CrossEntropyLoss()(out,labels)
+                loss_value_test += loss_value_batch.item()
+                for (pred_i,labels_i) in zip(pred,labels):
+                    if pred_i == labels_i:
+                        correct += 1
+                    total += 1
 
-                if pred.data.item() == labels[0][0]:
-                    correct += 1.
-                total += 1.
             acc = correct / total
+            valloss = loss_value_test / len(test_loader)
             print('Val accuracy: %.4f' % acc)
+            print('Val loss',valloss)
             if acc > best_acc:
                 best_acc = acc
                 self.save(os.path.join(save_dir, 'best_a.pth'), os.path.join(save_dir, 'best_b.pth'))
